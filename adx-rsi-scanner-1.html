@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ADX + RSI SCANNER</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Bebas+Neue&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080510;
+    --panel: #100d1a;
+    --border: #2a1a5c;
+    --accent: #a855f7;
+    --accent2: #7c3aed;
+    --green: #00ff88;
+    --red: #ff3355;
+    --yellow: #ffcc00;
+    --blue: #00d4ff;
+    --text: #d0c8f0;
+    --dim: #6a5090;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(168,85,247,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(168,85,247,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 1300px;
+    margin: 0 auto;
+    padding: 24px 16px;
+  }
+
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .title-block h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 48px;
+    letter-spacing: 4px;
+    background: linear-gradient(90deg, var(--accent), var(--blue));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1;
+  }
+
+  .title-block p {
+    font-size: 11px;
+    color: var(--dim);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  .status-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 11px;
+    color: var(--dim);
+  }
+
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); transition: all 0.3s; }
+  .dot.live { background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse 1.5s infinite; }
+  .dot.scanning { background: var(--yellow); box-shadow: 0 0 8px var(--yellow); animation: pulse 0.5s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* Controls */
+  .controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px;
+    margin-bottom: 20px;
+    padding: 18px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%);
+  }
+
+  .ctrl-group label {
+    display: block;
+    font-size: 10px;
+    color: var(--dim);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+  }
+
+  .ctrl-group input, .ctrl-group select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 7px 10px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .ctrl-group input:focus, .ctrl-group select:focus { border-color: var(--accent); }
+  .ctrl-group select option { background: var(--bg); }
+
+  .scan-btn {
+    align-self: flex-end;
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 3px;
+    padding: 7px 24px;
+    cursor: pointer;
+    transition: all 0.2s;
+    clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+    white-space: nowrap;
+  }
+  .scan-btn:hover:not(:disabled) {
+    background: var(--accent);
+    color: var(--bg);
+    box-shadow: 0 0 20px rgba(168,85,247,0.5);
+  }
+  .scan-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Filter bar */
+  .filter-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .filter-label { font-size: 10px; color: var(--dim); letter-spacing: 2px; text-transform: uppercase; margin-right: 4px; }
+
+  .filter-btn {
+    padding: 6px 16px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--dim);
+    transition: all 0.2s;
+    clip-path: polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%);
+  }
+  .filter-btn:hover { color: var(--text); border-color: var(--dim); }
+  .filter-btn.active { color: var(--bg); }
+  .filter-btn.active.f-all { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 10px rgba(168,85,247,0.3); }
+  .filter-btn.active.f-adx { background: var(--yellow); border-color: var(--yellow); box-shadow: 0 0 10px rgba(255,204,0,0.3); }
+  .filter-btn.active.f-os { background: var(--green); border-color: var(--green); box-shadow: 0 0 10px rgba(0,255,136,0.3); }
+  .filter-btn.active.f-ob { background: var(--red); border-color: var(--red); box-shadow: 0 0 10px rgba(255,51,85,0.3); }
+  .filter-btn.active.f-combo { background: linear-gradient(90deg, var(--yellow), var(--green)); border-color: var(--green); }
+
+  .count-badge {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    margin-left: 4px;
+    opacity: 0.8;
+  }
+
+  /* Progress */
+  .progress-wrap { margin-bottom: 14px; display: none; }
+  .progress-wrap.show { display: block; }
+  .progress-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--dim); margin-bottom: 5px; }
+  .progress-bar { height: 3px; background: var(--border); overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--blue)); width: 0%; transition: width 0.3s; box-shadow: 0 0 8px var(--accent); }
+
+  /* Stats */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .stat-card { background: var(--panel); border: 1px solid var(--border); padding: 12px 14px; text-align: center; }
+  .stat-card .val { font-family: 'Bebas Neue', sans-serif; font-size: 30px; line-height: 1; color: var(--accent); }
+  .stat-card .val.yellow { color: var(--yellow); text-shadow: 0 0 10px rgba(255,204,0,0.4); }
+  .stat-card .val.green { color: var(--green); text-shadow: 0 0 10px rgba(0,255,136,0.4); }
+  .stat-card .val.red { color: var(--red); text-shadow: 0 0 10px rgba(255,51,85,0.4); }
+  .stat-card .val.combo { color: var(--blue); text-shadow: 0 0 10px rgba(0,212,255,0.4); }
+  .stat-card .lbl { font-size: 10px; color: var(--dim); letter-spacing: 2px; text-transform: uppercase; margin-top: 4px; }
+
+  /* Table */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  thead th {
+    text-align: left; padding: 9px 10px;
+    font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--dim); border-bottom: 1px solid var(--border);
+    white-space: nowrap; cursor: pointer; user-select: none;
+  }
+  thead th:hover { color: var(--text); }
+  tbody tr { border-bottom: 1px solid rgba(42,26,92,0.4); transition: background 0.15s; animation: fadeIn 0.3s ease forwards; opacity: 0; }
+  tbody tr:hover { background: rgba(168,85,247,0.05); }
+  @keyframes fadeIn { to { opacity: 1; } }
+  tbody td { padding: 10px 10px; white-space: nowrap; }
+
+  .symbol { color: var(--text); font-weight: bold; letter-spacing: 1px; }
+  .symbol span { color: var(--dim); font-size: 10px; }
+
+  .adx-val { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 1px; }
+  .adx-val.strong { color: var(--yellow); text-shadow: 0 0 8px rgba(255,204,0,0.5); }
+  .adx-val.extreme { color: #ff9900; text-shadow: 0 0 8px rgba(255,153,0,0.5); }
+
+  .rsi-val { font-family: 'Bebas Neue', sans-serif; font-size: 20px; }
+  .rsi-val.oversold { color: var(--green); }
+  .rsi-val.overbought { color: var(--red); }
+  .rsi-val.neutral { color: var(--dim); }
+
+  .mini-bar-wrap { width: 60px; height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .mini-bar-fill { height: 100%; border-radius: 3px; }
+
+  .badge {
+    display: inline-block; padding: 2px 8px;
+    font-size: 9px; letter-spacing: 2px; font-weight: bold; text-transform: uppercase;
+    clip-path: polygon(3px 0, 100% 0, calc(100% - 3px) 100%, 0 100%);
+    margin: 1px;
+  }
+  .badge.adx-badge { background: rgba(255,204,0,0.15); color: var(--yellow); border: 1px solid rgba(255,204,0,0.3); }
+  .badge.adx-extreme { background: rgba(255,153,0,0.15); color: #ff9900; border: 1px solid rgba(255,153,0,0.3); }
+  .badge.os { background: rgba(0,255,136,0.15); color: var(--green); border: 1px solid rgba(0,255,136,0.3); }
+  .badge.ob { background: rgba(255,51,85,0.15); color: var(--red); border: 1px solid rgba(255,51,85,0.3); }
+  .badge.combo-os { background: rgba(0,212,255,0.15); color: var(--blue); border: 1px solid rgba(0,212,255,0.3); }
+  .badge.combo-ob { background: rgba(255,100,0,0.15); color: #ff6400; border: 1px solid rgba(255,100,0,0.3); }
+
+  .dir-bull { color: var(--green); font-size: 16px; }
+  .dir-bear { color: var(--red); font-size: 16px; }
+
+  .price { color: var(--text); }
+  .change.pos { color: var(--green); }
+  .change.neg { color: var(--red); }
+
+  .empty { text-align: center; padding: 60px 20px; color: var(--dim); }
+  .empty .big { font-family: 'Bebas Neue', sans-serif; font-size: 48px; color: var(--border); margin-bottom: 12px; }
+
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <div class="title-block">
+      <h1>ADX + RSI SCANNER</h1>
+      <p>Binance USDT Spot · Güçlü Trend + Momentum</p>
+    </div>
+    <div class="status-bar">
+      <div class="dot" id="statusDot"></div>
+      <span id="statusText">HAZIR</span>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="ctrl-group">
+      <label>Zaman Dilimi</label>
+      <select id="interval">
+        <option value="5m">5 Dakika</option>
+        <option value="15m" selected>15 Dakika</option>
+        <option value="1h">1 Saat</option>
+        <option value="4h">4 Saat</option>
+        <option value="1d">Günlük</option>
+      </select>
+    </div>
+    <div class="ctrl-group">
+      <label>ADX Periyot</label>
+      <input type="number" id="adxPeriod" value="14" min="5" max="50">
+    </div>
+    <div class="ctrl-group">
+      <label>Min ADX (Güçlü Trend)</label>
+      <input type="number" id="adxMin" value="45" min="20" max="80">
+    </div>
+    <div class="ctrl-group">
+      <label>RSI Periyot</label>
+      <input type="number" id="rsiPeriod" value="14" min="5" max="50">
+    </div>
+    <div class="ctrl-group">
+      <label>RSI Aşırı Satım (≤)</label>
+      <input type="number" id="oversoldLevel" value="30" min="10" max="45">
+    </div>
+    <div class="ctrl-group">
+      <label>RSI Aşırı Alım (≥)</label>
+      <input type="number" id="overboughtLevel" value="70" min="55" max="90">
+    </div>
+    <div class="ctrl-group">
+      <label>Min. Hacim (USDT)</label>
+      <select id="minVolume">
+        <option value="0">Tümü</option>
+        <option value="500000">500K+</option>
+        <option value="1000000" selected>1M+</option>
+        <option value="5000000">5M+</option>
+        <option value="10000000">10M+</option>
+      </select>
+    </div>
+    <div class="ctrl-group">
+      <label>Tarama Yap</label>
+      <button class="scan-btn" id="scanBtn" onclick="startScan()">▶ TARA</button>
+    </div>
+  </div>
+
+  <div class="progress-wrap" id="progressWrap">
+    <div class="progress-label">
+      <span id="progressText">Taranıyor...</span>
+      <span id="progressPct">0%</span>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  </div>
+
+  <div class="stats">
+    <div class="stat-card"><div class="val" id="statTotal">—</div><div class="lbl">Taranan Coin</div></div>
+    <div class="stat-card"><div class="val yellow" id="statADX">—</div><div class="lbl">Güçlü Trend (ADX)</div></div>
+    <div class="stat-card"><div class="val green" id="statOS">—</div><div class="lbl">Aşırı Satım (RSI)</div></div>
+    <div class="stat-card"><div class="val red" id="statOB">—</div><div class="lbl">Aşırı Alım (RSI)</div></div>
+    <div class="stat-card"><div class="val combo" id="statCombo">—</div><div class="lbl">ADX + RSI Combo</div></div>
+    <div class="stat-card"><div class="val" id="statTime">—</div><div class="lbl">Süre</div></div>
+  </div>
+
+  <!-- Filter Bar -->
+  <div class="filter-bar">
+    <span class="filter-label">FİLTRE:</span>
+    <button class="filter-btn f-all active" onclick="setFilter('all', this)">TÜMÜ <span class="count-badge" id="cf-all">0</span></button>
+    <button class="filter-btn f-adx" onclick="setFilter('adx', this)">SADECE ADX <span class="count-badge" id="cf-adx">0</span></button>
+    <button class="filter-btn f-os" onclick="setFilter('os', this)">SADECE RSI↓ <span class="count-badge" id="cf-os">0</span></button>
+    <button class="filter-btn f-ob" onclick="setFilter('ob', this)">SADECE RSI↑ <span class="count-badge" id="cf-ob">0</span></button>
+    <button class="filter-btn f-combo" onclick="setFilter('combo', this)">ADX + RSI COMBO <span class="count-badge" id="cf-combo">0</span></button>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th onclick="sortBy('symbol')">Sembol</th>
+          <th onclick="sortBy('adx')">ADX ▾</th>
+          <th>Yön</th>
+          <th onclick="sortBy('rsi')">RSI</th>
+          <th>RSI Bar</th>
+          <th>Sinyaller</th>
+          <th onclick="sortBy('price')">Fiyat</th>
+          <th onclick="sortBy('change')">24s %</th>
+          <th onclick="sortBy('volume')">Hacim</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody">
+        <tr><td colspan="9">
+          <div class="empty">
+            <div class="big">BEKLEMEDE</div>
+            <div>TARA butonuna bas, Binance spot piyasasını tarayalım</div>
+          </div>
+        </td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+let allResults = [];
+let currentFilter = 'all';
+let sortKey = 'adx';
+let sortAsc = false;
+
+async function startScan() {
+  const btn = document.getElementById('scanBtn');
+  btn.disabled = true;
+  setStatus('scanning', 'TARANYOR...');
+  showProgress(true);
+
+  const interval = document.getElementById('interval').value;
+  const adxPeriod = parseInt(document.getElementById('adxPeriod').value);
+  const adxMin = parseFloat(document.getElementById('adxMin').value);
+  const rsiPeriod = parseInt(document.getElementById('rsiPeriod').value);
+  const osLevel = parseFloat(document.getElementById('oversoldLevel').value);
+  const obLevel = parseFloat(document.getElementById('overboughtLevel').value);
+  const minVol = parseFloat(document.getElementById('minVolume').value);
+
+  const startTime = Date.now();
+  allResults = [];
+
+  try {
+    updateProgress(5, 'Piyasa verileri alınıyor...');
+    const tickerRes = await fetch('https://api.binance.com/api/v3/ticker/24hr');
+    const tickers = await tickerRes.json();
+
+    const usdtPairs = tickers
+      .filter(t => t.symbol.endsWith('USDT') && parseFloat(t.quoteVolume) >= minVol)
+      .sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
+      .slice(0, 200);
+
+    const total = usdtPairs.length;
+    document.getElementById('statTotal').textContent = total;
+
+    const BATCH = 8;
+    for (let i = 0; i < total; i += BATCH) {
+      const batch = usdtPairs.slice(i, i + BATCH);
+      await Promise.all(batch.map(t => scanCoin(t, interval, adxPeriod, adxMin, rsiPeriod, osLevel, obLevel)));
+      const pct = Math.round(((i + BATCH) / total) * 90) + 5;
+      updateProgress(Math.min(pct, 95), `Taraniyor... ${Math.min(i + BATCH, total)}/${total}`);
+    }
+
+    updateProgress(100, 'Tamamlandı!');
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+    document.getElementById('statTime').textContent = elapsed + 's';
+
+    updateStats();
+    renderTable();
+    setStatus('live', 'TAMAMLANDI');
+
+  } catch (e) {
+    setStatus('idle', 'HATA: ' + e.message);
+    console.error(e);
+  }
+
+  setTimeout(() => showProgress(false), 1500);
+  btn.disabled = false;
+}
+
+async function scanCoin(ticker, interval, adxPeriod, adxMin, rsiPeriod, osLevel, obLevel) {
+  try {
+    const symbol = ticker.symbol;
+    const limit = 200;
+    const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`);
+    const klines = await res.json();
+    if (!Array.isArray(klines) || klines.length < adxPeriod + 5) return;
+
+    const highs = klines.map(k => parseFloat(k[2]));
+    const lows = klines.map(k => parseFloat(k[3]));
+    const closes = klines.map(k => parseFloat(k[4]));
+
+    const adxResult = calcADX(highs, lows, closes, adxPeriod);
+    const rsi = calcRSI(closes, rsiPeriod);
+
+    if (adxResult === null || rsi === null) return;
+
+    const { adx, pdi, mdi } = adxResult;
+    if (adx < adxMin && rsi > osLevel && rsi < obLevel) return; // skip if nothing interesting
+
+    const price = parseFloat(ticker.lastPrice);
+    const change = parseFloat(ticker.priceChangePercent);
+    const volume = parseFloat(ticker.quoteVolume);
+    const direction = pdi > mdi ? 'bull' : 'bear';
+
+    const hasStrongADX = adx >= adxMin;
+    const isOversold = rsi <= osLevel;
+    const isOverbought = rsi >= obLevel;
+
+    // Only include if at least one signal
+    if (!hasStrongADX && !isOversold && !isOverbought) return;
+
+    allResults.push({ symbol, adx, pdi, mdi, direction, rsi, price, change, volume, hasStrongADX, isOversold, isOverbought });
+  } catch (e) {}
+}
+
+function calcADX(highs, lows, closes, period) {
+  if (closes.length < period + 2) return null;
+  const n = closes.length;
+  const trArr = [], pdmArr = [], mdmArr = [];
+
+  for (let i = 1; i < n; i++) {
+    const hl = highs[i] - lows[i];
+    const hpc = Math.abs(highs[i] - closes[i-1]);
+    const lpc = Math.abs(lows[i] - closes[i-1]);
+    trArr.push(Math.max(hl, hpc, lpc));
+
+    const upMove = highs[i] - highs[i-1];
+    const downMove = lows[i-1] - lows[i];
+    pdmArr.push(upMove > downMove && upMove > 0 ? upMove : 0);
+    mdmArr.push(downMove > upMove && downMove > 0 ? downMove : 0);
+  }
+
+  // Wilder smoothing
+  let atr = trArr.slice(0, period).reduce((a,b) => a+b, 0);
+  let pdm = pdmArr.slice(0, period).reduce((a,b) => a+b, 0);
+  let mdm = mdmArr.slice(0, period).reduce((a,b) => a+b, 0);
+
+  const dxArr = [];
+  for (let i = period; i < trArr.length; i++) {
+    atr = atr - atr/period + trArr[i];
+    pdm = pdm - pdm/period + pdmArr[i];
+    mdm = mdm - mdm/period + mdmArr[i];
+    const pdi = atr > 0 ? 100 * pdm / atr : 0;
+    const mdi = atr > 0 ? 100 * mdm / atr : 0;
+    const dx = (pdi + mdi) > 0 ? 100 * Math.abs(pdi - mdi) / (pdi + mdi) : 0;
+    dxArr.push({ dx, pdi, mdi });
+  }
+
+  if (dxArr.length < period) return null;
+  let adx = dxArr.slice(0, period).reduce((a,b) => a + b.dx, 0) / period;
+  let lastPdi = dxArr[period-1].pdi;
+  let lastMdi = dxArr[period-1].mdi;
+
+  for (let i = period; i < dxArr.length; i++) {
+    adx = (adx * (period-1) + dxArr[i].dx) / period;
+    lastPdi = dxArr[i].pdi;
+    lastMdi = dxArr[i].mdi;
+  }
+
+  return { adx, pdi: lastPdi, mdi: lastMdi };
+}
+
+function calcRSI(closes, period) {
+  if (closes.length < period + 1) return null;
+  let gains = 0, losses = 0;
+  for (let i = 1; i <= period; i++) {
+    const diff = closes[i] - closes[i-1];
+    if (diff > 0) gains += diff; else losses += Math.abs(diff);
+  }
+  let avgGain = gains / period;
+  let avgLoss = losses / period;
+  for (let i = period + 1; i < closes.length; i++) {
+    const diff = closes[i] - closes[i-1];
+    avgGain = (avgGain * (period-1) + (diff > 0 ? diff : 0)) / period;
+    avgLoss = (avgLoss * (period-1) + (diff < 0 ? Math.abs(diff) : 0)) / period;
+  }
+  if (avgLoss === 0) return 100;
+  return 100 - (100 / (1 + avgGain / avgLoss));
+}
+
+function updateStats() {
+  const adxCount = allResults.filter(r => r.hasStrongADX).length;
+  const osCount = allResults.filter(r => r.isOversold).length;
+  const obCount = allResults.filter(r => r.isOverbought).length;
+  const comboCount = allResults.filter(r => r.hasStrongADX && (r.isOversold || r.isOverbought)).length;
+
+  document.getElementById('statADX').textContent = adxCount;
+  document.getElementById('statOS').textContent = osCount;
+  document.getElementById('statOB').textContent = obCount;
+  document.getElementById('statCombo').textContent = comboCount;
+
+  document.getElementById('cf-all').textContent = allResults.length;
+  document.getElementById('cf-adx').textContent = adxCount;
+  document.getElementById('cf-os').textContent = osCount;
+  document.getElementById('cf-ob').textContent = obCount;
+  document.getElementById('cf-combo').textContent = comboCount;
+}
+
+function setFilter(filter, el) {
+  currentFilter = filter;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  renderTable();
+}
+
+function sortBy(key) {
+  if (sortKey === key) sortAsc = !sortAsc;
+  else { sortKey = key; sortAsc = false; }
+  renderTable();
+}
+
+function getFilteredData() {
+  return allResults.filter(r => {
+    if (currentFilter === 'all') return true;
+    if (currentFilter === 'adx') return r.hasStrongADX && !r.isOversold && !r.isOverbought;
+    if (currentFilter === 'os') return r.isOversold && !r.hasStrongADX;
+    if (currentFilter === 'ob') return r.isOverbought && !r.hasStrongADX;
+    if (currentFilter === 'combo') return r.hasStrongADX && (r.isOversold || r.isOverbought);
+    return true;
+  });
+}
+
+function renderTable() {
+  let data = getFilteredData();
+  data.sort((a, b) => {
+    let av = a[sortKey], bv = b[sortKey];
+    if (typeof av === 'string') return sortAsc ? av.localeCompare(bv) : bv.localeCompare(av);
+    return sortAsc ? av - bv : bv - av;
+  });
+
+  const tbody = document.getElementById('tableBody');
+  if (data.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="9"><div class="empty"><div class="big">SONUÇ YOK</div><div>Kriterlere uyan coin bulunamadı</div></div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = data.map((r, i) => {
+    const adxClass = r.adx >= 60 ? 'extreme' : 'strong';
+    const rsiClass = r.isOversold ? 'oversold' : r.isOverbought ? 'overbought' : 'neutral';
+    const rsiBarColor = r.isOversold ? 'var(--green)' : r.isOverbought ? 'var(--red)' : 'var(--dim)';
+    const dirIcon = r.direction === 'bull' ? '<span class="dir-bull">▲</span>' : '<span class="dir-bear">▼</span>';
+    const sym = r.symbol.replace('USDT', '');
+    const priceStr = r.price < 0.001 ? r.price.toExponential(2) : r.price < 1 ? r.price.toFixed(5) : r.price.toFixed(2);
+    const volStr = r.volume >= 1e9 ? (r.volume/1e9).toFixed(1)+'B' : r.volume >= 1e6 ? (r.volume/1e6).toFixed(1)+'M' : (r.volume/1e3).toFixed(0)+'K';
+    const changeClass = r.change >= 0 ? 'pos' : 'neg';
+    const changeStr = (r.change >= 0 ? '+' : '') + r.change.toFixed(2) + '%';
+
+    // Badges
+    let badges = '';
+    if (r.hasStrongADX) {
+      badges += r.adx >= 60
+        ? `<span class="badge adx-extreme">ADX ${r.adx.toFixed(0)} 🔥</span>`
+        : `<span class="badge adx-badge">ADX ${r.adx.toFixed(0)}</span>`;
+    }
+    if (r.isOversold && r.hasStrongADX) badges += `<span class="badge combo-os">COMBO ↓</span>`;
+    else if (r.isOverbought && r.hasStrongADX) badges += `<span class="badge combo-ob">COMBO ↑</span>`;
+    else if (r.isOversold) badges += `<span class="badge os">RSI SATIŞ</span>`;
+    else if (r.isOverbought) badges += `<span class="badge ob">RSI ALIM</span>`;
+
+    return `<tr style="animation-delay:${i*0.025}s">
+      <td class="symbol">${sym}<span>/USDT</span></td>
+      <td class="adx-val ${adxClass}">${r.adx.toFixed(1)}</td>
+      <td>${dirIcon} <small style="color:var(--dim);font-size:10px">${r.direction === 'bull' ? '+DI' : '-DI'}</small></td>
+      <td class="rsi-val ${rsiClass}">${r.rsi.toFixed(1)}</td>
+      <td><div class="mini-bar-wrap"><div class="mini-bar-fill" style="width:${r.rsi}%;background:${rsiBarColor}"></div></div></td>
+      <td>${badges}</td>
+      <td class="price">${priceStr}</td>
+      <td class="change ${changeClass}">${changeStr}</td>
+      <td class="price">${volStr}</td>
+    </tr>`;
+  }).join('');
+}
+
+function setStatus(state, text) {
+  const dot = document.getElementById('statusDot');
+  dot.className = 'dot' + (state === 'scanning' ? ' scanning' : state === 'live' ? ' live' : '');
+  document.getElementById('statusText').textContent = text;
+}
+function showProgress(show) { document.getElementById('progressWrap').classList.toggle('show', show); }
+function updateProgress(pct, text) {
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressText').textContent = text;
+  document.getElementById('progressPct').textContent = pct + '%';
+}
+</script>
+</body>
+</html>
