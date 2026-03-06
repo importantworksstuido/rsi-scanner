@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Paçal Sistemi</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=Playfair+Display:wght@700&display=swap');
+
+:root {
+  --bg: #f5f0e8;
+  --paper: #faf7f2;
+  --ink: #1a1a1a;
+  --muted: #888;
+  --border: #d4cdc0;
+  --green: #2d6a4f;
+  --red: #c1121f;
+  --gold: #b5830a;
+  --stripe: #f0ebe0;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'IBM Plex Mono', monospace;
+  min-height: 100vh;
+  padding: 32px 20px 60px;
+}
+
+h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: 32px;
+  letter-spacing: -1px;
+  margin-bottom: 4px;
+}
+
+.subtitle {
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 32px;
+}
+
+.wrap { max-width: 860px; margin: 0 auto; }
+
+/* INPUTS */
+.inputs {
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 24px;
+  margin-bottom: 28px;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 20px;
+}
+
+@media(max-width:600px) { .inputs { grid-template-columns: 1fr; } }
+
+.field label {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.field input, .field select {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 16px;
+  font-weight: 600;
+  padding: 10px 12px;
+  color: var(--ink);
+  outline: none;
+  border-radius: 2px;
+  transition: border-color 0.15s;
+}
+
+.field input:focus, .field select:focus { border-color: var(--ink); }
+
+.btn {
+  background: var(--ink);
+  color: var(--bg);
+  border: none;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 12px 28px;
+  cursor: pointer;
+  border-radius: 2px;
+  margin-top: 24px;
+  transition: background 0.15s;
+}
+.btn:hover { background: #333; }
+
+/* TABLES */
+.section-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  color: var(--muted);
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.table-wrap {
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  overflow-x: auto;
+  margin-bottom: 28px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+th {
+  padding: 10px 14px;
+  text-align: right;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+th:first-child { text-align: center; }
+
+td {
+  padding: 11px 14px;
+  text-align: right;
+  border-bottom: 1px solid var(--stripe);
+  white-space: nowrap;
+}
+
+td:first-child { text-align: center; font-weight: 700; }
+
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--stripe); }
+
+.pos { color: var(--green); font-weight: 600; }
+.neg { color: var(--red); font-weight: 600; }
+.gold { color: var(--gold); font-weight: 700; }
+
+.kademe-badge {
+  display: inline-block;
+  width: 28px;
+  height: 28px;
+  line-height: 28px;
+  text-align: center;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  font-size: 11px;
+}
+
+.highlight td { background: rgba(181,131,10,0.06); }
+
+/* SUMMARY */
+.summary {
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 20px 24px;
+  margin-bottom: 28px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+@media(max-width:600px) { .summary { grid-template-columns: 1fr 1fr; } }
+
+.sum-item label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--muted);
+  display: block;
+  margin-bottom: 6px;
+}
+
+.sum-item .val {
+  font-family: 'Playfair Display', serif;
+  font-size: 22px;
+  color: var(--ink);
+}
+
+.empty {
+  text-align: center;
+  padding: 48px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 2;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Paçal Sistemi</h1>
+  <p class="subtitle">Dinamik Martingale — Kripto</p>
+
+  <div class="inputs">
+    <div class="field">
+      <label>Giriş Fiyatı ($)</label>
+      <input type="number" id="price" value="100" min="0.000001" step="any"/>
+    </div>
+    <div class="field">
+      <label>Toplam Sermaye ($)</label>
+      <input type="number" id="capital" value="1000" min="1" step="any"/>
+    </div>
+    <div class="field">
+      <label>Çarpan (×)</label>
+      <select id="multiplier">
+        <option value="1.5">× 1.5</option>
+        <option value="2" selected>× 2</option>
+        <option value="3">× 3</option>
+        <option value="4">× 4</option>
+        <option value="custom">Özel...</option>
+      </select>
+    </div>
+    <div class="field" id="customField" style="display:none">
+      <label>Özel Çarpan</label>
+      <input type="number" id="customMultiplier" value="2.5" min="1.01" step="0.1"/>
+    </div>
+  </div>
+
+  <button class="btn" onclick="calculate()">Hesapla</button>
+
+  <div id="output" style="margin-top:32px">
+    <div class="empty">↑ Fiyat ve sermayeni gir, hesapla.</div>
+  </div>
+
+</div>
+
+<script>
+document.getElementById('multiplier').addEventListener('change', function() {
+  document.getElementById('customField').style.display = this.value === 'custom' ? 'block' : 'none';
+});
+
+function fmt(n, dec=2) {
+  if (Math.abs(n) < 0.01 && n !== 0) return '$' + n.toFixed(6);
+  return '$' + n.toLocaleString('en', {minimumFractionDigits: dec, maximumFractionDigits: dec});
+}
+
+function fmtPct(n) {
+  const s = (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
+  return s;
+}
+
+function calculate() {
+  const price = parseFloat(document.getElementById('price').value);
+  const capital = parseFloat(document.getElementById('capital').value);
+  let mult = document.getElementById('multiplier').value;
+  if (mult === 'custom') mult = parseFloat(document.getElementById('customMultiplier').value);
+  else mult = parseFloat(mult);
+
+  if (!price || !capital || !mult) return;
+
+  // 10 kademe, ilk alım hesapla
+  // Toplam = x * (mult^10 - 1) / (mult - 1) = capital
+  // x = capital * (mult - 1) / (mult^10 - 1)
+  const n = 10;
+  let x;
+  if (mult === 1) {
+    x = capital / n;
+  } else {
+    x = capital * (mult - 1) / (Math.pow(mult, n) - 1);
+  }
+
+  // Kademeler
+  const kademeler = [];
+  let cumSpent = 0;
+  let cumCoins = 0;
+
+  for (let i = 0; i < n; i++) {
+    const dropPct = i * 10;
+    const kademePrice = price * (1 - dropPct / 100);
+    const alim = x * Math.pow(mult, i);
+    cumSpent += alim;
+    cumCoins += alim / kademePrice;
+    const pacal = cumSpent / cumCoins;
+
+    kademeler.push({
+      kademe: i + 1,
+      dropPct,
+      kademePrice,
+      alim,
+      cumSpent,
+      cumCoins,
+      pacal,
+    });
+  }
+
+  // OUTPUT
+  const out = document.getElementById('output');
+
+  // SUMMARY
+  const ilk = kademeler[0];
+  const son = kademeler[n-1];
+
+  let html = `
+    <div class="summary">
+      <div class="sum-item">
+        <label>İlk Alım</label>
+        <div class="val">${fmt(ilk.alim)}</div>
+      </div>
+      <div class="sum-item">
+        <label>Son Kademe Alım</label>
+        <div class="val">${fmt(son.alim)}</div>
+      </div>
+      <div class="sum-item">
+        <label>Toplam (10 kademe)</label>
+        <div class="val">${fmt(son.cumSpent)}</div>
+      </div>
+    </div>
+  `;
+
+  // TABLO 1 — ALIM PLANI
+  html += `<div class="section-title">Tablo 1 — Alım Planı</div>`;
+  html += `<div class="table-wrap"><table>
+    <thead><tr>
+      <th>#</th>
+      <th>Düşüş</th>
+      <th>Fiyat ($)</th>
+      <th>Bu Alım ($)</th>
+      <th>Toplam Harcanan ($)</th>
+      <th>Toplam Coin</th>
+      <th>Paçal Maliyet ($)</th>
+    </tr></thead>
+    <tbody>`;
+
+  kademeler.forEach((k, i) => {
+    html += `<tr${i === 0 ? ' class="highlight"' : ''}>
+      <td><span class="kademe-badge">${k.kademe}</span></td>
+      <td>${k.dropPct === 0 ? '— Giriş' : '<span class="neg">▼ %' + k.dropPct + '</span>'}</td>
+      <td class="gold">${fmt(k.kademePrice, 4)}</td>
+      <td>${fmt(k.alim)}</td>
+      <td>${fmt(k.cumSpent)}</td>
+      <td>${k.cumCoins.toFixed(6)}</td>
+      <td>${fmt(k.pacal, 4)}</td>
+    </tr>`;
+  });
+
+  html += `</tbody></table></div>`;
+
+  // TABLO 2 — KAR/ZARAR
+  html += `<div class="section-title">Tablo 2 — Bu Kademede Durdun, Şu Kadar Çıktı</div>`;
+  html += `<div class="table-wrap"><table>
+    <thead><tr>
+      <th>#</th>
+      <th>Durduğun Fiyat</th>
+      <th>Harcanan</th>
+      <th>+%10 çıkınca</th>
+      <th>+%20 çıkınca</th>
+      <th>+%25 çıkınca</th>
+      <th>+%50 çıkınca</th>
+      <th>Başabaş için</th>
+    </tr></thead>
+    <tbody>`;
+
+  kademeler.forEach((k, i) => {
+    function karHesapla(cikisPct) {
+      const cikisFiyat = k.kademePrice * (1 + cikisPct / 100);
+      const gelir = cikisFiyat * k.cumCoins;
+      const kar = gelir - k.cumSpent;
+      const karPct = (kar / k.cumSpent) * 100;
+      const cls = kar >= 0 ? 'pos' : 'neg';
+      return `<span class="${cls}">${fmt(kar)} (${fmtPct(karPct)})</span>`;
+    }
+
+    // Başabaş için gereken çıkış yüzdesi
+    const basabas = ((k.pacal - k.kademePrice) / k.kademePrice) * 100;
+
+    html += `<tr>
+      <td><span class="kademe-badge">${k.kademe}</span></td>
+      <td class="gold">${fmt(k.kademePrice, 4)}</td>
+      <td>${fmt(k.cumSpent)}</td>
+      <td>${karHesapla(10)}</td>
+      <td>${karHesapla(20)}</td>
+      <td>${karHesapla(25)}</td>
+      <td>${karHesapla(50)}</td>
+      <td><span class="gold">+${basabas.toFixed(2)}%</span></td>
+    </tr>`;
+  });
+
+  html += `</tbody></table></div>`;
+
+  out.innerHTML = html;
+}
+
+// İlk yüklemede hesapla
+calculate();
+</script>
+</body>
+</html>
