@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Paçal Sistemi</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=Playfair+Display:wght@700&display=swap');
+:root {
+  --bg: #f5f0e8; --paper: #faf7f2; --ink: #1a1a1a;
+  --muted: #888; --border: #d4cdc0; --green: #2d6a4f;
+  --red: #c1121f; --gold: #b5830a; --stripe: #f0ebe0;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--ink); font-family: 'IBM Plex Mono', monospace; min-height: 100vh; padding: 32px 20px 60px; }
+h1 { font-family: 'Playfair Display', serif; font-size: 30px; letter-spacing: -1px; margin-bottom: 4px; }
+.subtitle { font-size: 11px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 28px; }
+.wrap { max-width: 980px; margin: 0 auto; }
+.inputs { background: var(--paper); border: 1px solid var(--border); padding: 20px 24px; margin-bottom: 20px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+@media(max-width:650px){ .inputs { grid-template-columns: 1fr 1fr; } }
+.field label { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); margin-bottom: 6px; }
+.field input, .field select { width: 100%; background: var(--bg); border: 1px solid var(--border); font-family: 'IBM Plex Mono', monospace; font-size: 15px; font-weight: 600; padding: 9px 11px; color: var(--ink); outline: none; transition: border-color 0.15s; }
+.field input:focus, .field select:focus { border-color: var(--ink); }
+.btn { background: var(--ink); color: var(--bg); border: none; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; padding: 12px 32px; cursor: pointer; margin-bottom: 28px; display: block; }
+.btn:hover { background: #333; }
+.table-wrap { background: var(--paper); border: 1px solid var(--border); overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th { padding: 10px 14px; text-align: right; font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); border-bottom: 1px solid var(--border); font-weight: 600; white-space: nowrap; }
+th:first-child { text-align: center; }
+td { padding: 11px 14px; text-align: right; border-bottom: 1px solid var(--stripe); white-space: nowrap; }
+td:first-child { text-align: center; font-weight: 700; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--stripe); }
+.pos { color: var(--green); font-weight: 600; }
+.neg { color: var(--red); font-weight: 600; }
+.gold { color: var(--gold); font-weight: 700; }
+.badge { display: inline-block; width: 26px; height: 26px; line-height: 26px; text-align: center; border: 1px solid var(--border); font-size: 11px; }
+.hl td { background: rgba(181,131,10,0.07); }
+.empty { text-align: center; padding: 48px; color: var(--muted); font-size: 12px; line-height: 2; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Paçal Sistemi</h1>
+  <p class="subtitle">Dinamik Martingale — Kripto</p>
+
+  <div class="inputs">
+    <div class="field">
+      <label>Giriş Fiyatı ($)</label>
+      <input type="number" id="price" value="100" min="0.000001" step="any"/>
+    </div>
+    <div class="field">
+      <label>Toplam Sermaye ($)</label>
+      <input type="number" id="capital" value="1000" min="10" step="any"/>
+    </div>
+    <div class="field">
+      <label>Çarpan (×)</label>
+      <select id="mult">
+        <option value="1.5">× 1.5</option>
+        <option value="2" selected>× 2</option>
+        <option value="3">× 3</option>
+        <option value="4">× 4</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Hedef Çıkış (%)</label>
+      <input type="number" id="target" value="25" min="0.1" step="any"/>
+    </div>
+  </div>
+
+  <button class="btn" onclick="calc()">Hesapla</button>
+
+  <div id="out"><div class="empty">Parametreleri gir, hesapla.</div></div>
+</div>
+
+<script>
+const DROPS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 99];
+
+function fmt(n, d=2) {
+  if (n === 0) return '$0.00';
+  if (Math.abs(n) < 0.01) return '$' + n.toFixed(6);
+  return '$' + n.toLocaleString('en', {minimumFractionDigits: d, maximumFractionDigits: d});
+}
+
+function calc() {
+  const price   = parseFloat(document.getElementById('price').value);
+  const capital = parseFloat(document.getElementById('capital').value);
+  const mult    = parseFloat(document.getElementById('mult').value);
+  const target  = parseFloat(document.getElementById('target').value);
+
+  if (!price || !capital || !mult || !target) return;
+
+  const FIRST = 10;
+  const remaining = capital - FIRST;
+
+  // Kalan 9 kademe geometrik dizi: mult^1 + mult^2 + ... + mult^9
+  const geoSum = mult * (Math.pow(mult, 9) - 1) / (mult - 1);
+  const x = remaining / geoSum;
+
+  let cumSpent = 0, cumCoins = 0;
+  let html = `<div class="table-wrap"><table>
+    <thead><tr>
+      <th>#</th>
+      <th>Düşüş</th>
+      <th>Fiyat ($)</th>
+      <th>Alım ($)</th>
+      <th>Toplam Harcanan ($)</th>
+      <th>Toplam Coin</th>
+      <th>Paçal Maliyet ($)</th>
+      <th>+%${target} Kar/Zarar</th>
+    </tr></thead><tbody>`;
+
+  DROPS.forEach((drop, i) => {
+    const kPrice = price * (1 - drop / 100);
+    const alim   = i === 0 ? FIRST : x * Math.pow(mult, i);
+    cumSpent += alim;
+    cumCoins += alim / kPrice;
+    const pacal  = cumSpent / cumCoins;
+
+    const exitPrice = kPrice * (1 + target / 100);
+    const gelir     = exitPrice * cumCoins;
+    const kar       = gelir - cumSpent;
+    const karPct    = (kar / cumSpent) * 100;
+    const karCls    = kar >= 0 ? 'pos' : 'neg';
+    const sign      = kar >= 0 ? '+' : '';
+    const karStr    = `<span class="${karCls}">${fmt(kar)} (${sign}${karPct.toFixed(1)}%)</span>`;
+
+    html += `<tr${i===0?' class="hl"':''}>
+      <td><span class="badge">${i+1}</span></td>
+      <td>${i===0 ? '— Giriş' : `<span class="neg">▼ %${drop}</span>`}</td>
+      <td class="gold">${fmt(kPrice, 4)}</td>
+      <td>${fmt(alim)}</td>
+      <td>${fmt(cumSpent)}</td>
+      <td>${cumCoins.toFixed(6)}</td>
+      <td>${fmt(pacal, 4)}</td>
+      <td>${karStr}</td>
+    </tr>`;
+  });
+
+  html += `</tbody></table></div>`;
+  document.getElementById('out').innerHTML = html;
+}
+
+calc();
+</script>
+</body>
+</html>
