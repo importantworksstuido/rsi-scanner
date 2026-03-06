@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kombinasyon Hesaplayıcı</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; max-width: 100vw; overflow-x: hidden; }
+    body { background: #faf9f6; font-family: Georgia, serif; color: #111; }
+    .layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+    .result-col { position: sticky; top: 16px; }
+    @media (max-width: 700px) {
+      .layout { grid-template-columns: 1fr !important; }
+      .result-col { position: static !important; }
+      .olay-header { flex-wrap: wrap; }
+      .toggle-row { order: 2; width: 100%; margin-top: 8px; }
+    }
+    input, textarea, button { font-family: Georgia, serif; }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useMemo } = React;
+
+// ---- MATH ----
+// Kesirsiz tam sayı OKEK — BigInt kullan, taşma olmaz
+function gcdBI(a, b) {
+  while (b) { [a, b] = [b, a % b]; }
+  return a;
+}
+function lcmBI(a, b) { return a / gcdBI(a, b) * b; }
+function lcmArrayBI(arr) {
+  if (!arr.length) return 1n;
+  return arr.reduce((acc, v) => lcmBI(acc, v), arr[0]);
+}
+
+// Ondalıklı oranı → pay/payda şeklinde tam kesire çevir (max 4 ondalık)
+function toRational(f) {
+  const s = f.toFixed(4);
+  const dec = (s.split('.')[1] || '').replace(/0+$/, '').length;
+  const denom = BigInt(Math.pow(10, dec));
+  const num = BigInt(Math.round(f * Number(denom)));
+  const g = gcdBI(num < 0n ? -num : num, denom);
+  return { num: num / g, den: denom / g };
+}
+
+function cartesian(arrays) {
+  return arrays.reduce((acc, arr) => {
+    const r = [];
+    acc.forEach(a => arr.forEach(b => r.push([...a, b])));
+    return r;
+  }, [[]]);
+}
+
+function parseOdds(text) {
+  return text.split(/[\s,;]+/)
+    .map(s => parseFloat(s.replace(',', '.')))
+    .filter(n => !isNaN(n) && n > 1.0);
+}
+
+// Kombinasyon oranlarının paydasını bul: pay1/den1 * pay2/den2 * ... = (pay1*pay2*...) / (den1*den2*...)
+// OKEK: tüm paydaların OKEK / her kombinasyonun payı
+function calcResult(events) {
+  const allFilled = events.every(e =>
+    e.outcomes.length >= 2 && e.outcomes.every(o => o.odd !== "" && parseFloat(o.odd) > 1.0)
+  );
+  if (!allFilled) return null;
+
+  const eventOutcomes = events.map(e =>
+    e.outcomes.map(o => ({ ev: e.name, label: o.label, odd: parseFloat(o.odd), rat: toRational(parseFloat(o.odd)) }))
+  );
+
+  const combos = cartesian(eventOutcomes);
+  if (combos.length > 50000) return { tooMany: true, count: combos.length };
+
+  // Her kombinasyonun birleşik oranını kesir olarak hesapla
+  // combo oran = ürün(pay_i) / ürün(den_i)
+  const comboRats = combos.map(combo => {
+    const label = combo.map(o => `${o.ev}:${o.label}`).join(" | ");
+    const num = combo.reduce((a, o) => a * o.rat.num, 1n);
+    const den = combo.reduce((a, o) => a * o.rat.den, 1n);
+    const g = gcdBI(num, den);
+    return { label, num: num / g, den: den / g, product: combo.reduce((a, o) => a * o.odd, 1) };
+  });
+
+  // OKEK: tüm paydaların OKEK'i
+  const okekDen = lcmArrayBI(comboRats.map(c => c.den));
+
+  // Her kombinasyona yatırılacak birim = okekDen / den_i * den_i / num_i = okekDen / num_i... 
+  // Aslında: stake_i = OKEK / (num_i / den_i) = OKEK * den_i / num_i
+  // OKEK burada paydaların OKEK'i = okekDen
+  // stake_i = okekDen / (num_i / den_i) = okekDen * den_i / num_i
+  // Ama den_i, okekDen'i böler (çünkü okekDen = LCM of den_i)
+  // stake_i = (okekDen / den_i) * den_i / num_i ... hayır
+  // Doğru: stake birim cinsinden = LCM(paydalar) / pay_i * (den_i / den_i) 
+  // Basitleştirelim: stakeRaw_i = okekDen / num_i  (tam sayı çıkar çünkü okekDen, den_i'nin katı ve num_i/den_i basitleştirilmiş)
+  // payout_i = stakeRaw_i * (num_i / den_i) = stakeRaw_i * num_i / den_i = okekDen / den_i (tam sayı)
+
+  const stakes = comboRats.map(c => {
+    // stakeRaw = okekDen * den_i / num_i  — tam sayı olması lazım
+    const stakeRawBI = okekDen * c.den / c.num;
+    const payoutBI = okekDen * c.den / c.den; // = okekDen... hayır
+    // payout = stakeRaw * oran = stakeRaw * num/den
+    const payoutBI2 = stakeRawBI * c.num / c.den;
+    return {
+      label: c.label,
+      product: c.product,
+      stakeBI: stakeRawBI,
+      payoutBI: payoutBI2,
+    };
+  });
+
+  const totalBI = stakes.reduce((s, x) => s + x.stakeBI, 0n);
+  const minPayoutBI = stakes.reduce((mn, x) => x.payoutBI < mn ? x.payoutBI : mn, stakes[0].payoutBI);
+  const profitBI = minPayoutBI - totalBI;
+
+  // Float'a çevir normalize ederek (min stake = 1)
+  const minStakeBI = stakes.reduce((mn, x) => x.stakeBI < mn ? x.stakeBI : mn, stakes[0].stakeBI);
+
+  const norm = stakes.map(x => ({
+    label: x.label,
+    stakeN: Number(x.stakeBI) / Number(minStakeBI),
+    payoutN: Number(x.payoutBI) / Number(minStakeBI),
+  }));
+
+  const totalN = Number(totalBI) / Number(minStakeBI);
+  const profitPct = (Number(profitBI) / Number(totalBI)) * 100;
+  const hasArb = profitBI > 0n;
+
+  // OKEK gösterimi
+  const okekDisplay = okekDen > 1000000000000n
+    ? okekDen.toString().slice(0, 6) + '...'
+    : okekDen.toString();
+
+  return { combos: norm, okekDisplay, totalN, profitPct, hasArb, count: combos.length, tooMany: false };
+}
+
+// ---- INIT ----
+const INIT = [
+  { id: 1, name: "Olay 1", outcomes: [{ label: "1", odd: "" }, { label: "X", odd: "" }, { label: "2", odd: "" }] },
+  { id: 2, name: "Olay 2", outcomes: [{ label: "1", odd: "" }, { label: "X", odd: "" }, { label: "2", odd: "" }] },
+];
+
+function App() {
+  const [events, setEvents] = useState(INIT);
+  const [nextId, setNextId] = useState(3);
+  const [budget, setBudget] = useState("");
+  const [pasteModes, setPasteModes] = useState({});
+  const [pasteTexts, setPasteTexts] = useState({});
+
+  const addEvent = () => {
+    setEvents(p => [...p, { id: nextId, name: `Olay ${nextId}`, outcomes: [{ label: "1", odd: "" }, { label: "X", odd: "" }, { label: "2", odd: "" }] }]);
+    setNextId(n => n + 1);
+  };
+  const removeEvent = id => setEvents(p => p.filter(e => e.id !== id));
+  const updateName = (id, v) => setEvents(p => p.map(e => e.id === id ? { ...e, name: v } : e));
+  const addOutcome = id => setEvents(p => p.map(e => e.id === id ? { ...e, outcomes: [...e.outcomes, { label: `${e.outcomes.length + 1}`, odd: "" }] } : e));
+  const removeOutcome = (id, i) => setEvents(p => p.map(e => e.id === id ? { ...e, outcomes: e.outcomes.filter((_, j) => j !== i) } : e));
+  const updateOutcome = (id, i, f, v) => setEvents(p => p.map(e => e.id === id ? { ...e, outcomes: e.outcomes.map((o, j) => j === i ? { ...o, [f]: v } : o) } : e));
+
+  const applyPaste = (id) => {
+    const odds = parseOdds(pasteTexts[id] || "");
+    if (odds.length < 2) return;
+    setEvents(p => p.map(e => e.id === id ? { ...e, outcomes: odds.map((odd, i) => ({ label: `${i + 1}`, odd: String(odd) })) } : e));
+    setPasteModes(p => ({ ...p, [id]: false }));
+    setPasteTexts(p => ({ ...p, [id]: "" }));
+  };
+
+  const result = useMemo(() => {
+    try { return calcResult(events); }
+    catch(e) { return { error: true }; }
+  }, [events]);
+
+  const budgetNum = parseFloat(budget) || 0;
+  const arb = result && !result.tooMany && !result.error;
+  const color = arb ? (result.hasArb ? "#1a9a5c" : "#c0392b") : "#999";
+
+  const card = { background: "#fff", border: "1px solid #e8e8e4", borderRadius: "10px", padding: "16px", marginBottom: "12px" };
+  const inp = { border: "1px solid #e0e0dc", borderRadius: "6px", padding: "8px 10px", fontSize: "14px", color: "#111", outline: "none", background: "#fff", width: "100%" };
+  const btnPrimary = { background: "#111", color: "#fff", border: "none", borderRadius: "8px", padding: "11px 16px", fontSize: "14px", cursor: "pointer", width: "100%" };
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#faf9f6", padding: "20px 14px" }}>
+      <div style={{ maxWidth: "960px", margin: "0 auto" }}>
+
+        {/* Başlık */}
+        <div style={{ borderBottom: "2px solid #111", paddingBottom: "12px", marginBottom: "22px" }}>
+          <h1 style={{ fontSize: "22px", fontWeight: "bold", letterSpacing: "-0.5px" }}>Kombinasyon Hesaplayıcı</h1>
+          <p style={{ color: "#999", fontSize: "12px", marginTop: "4px" }}>Olay ekle → manuel gir veya yapıştır → OKEK + arbitraj</p>
+        </div>
+
+        <div className="layout">
+
+          {/* SOL */}
+          <div>
+            {events.map(ev => {
+              const isPaste = !!pasteModes[ev.id];
+              const parsedCount = parseOdds(pasteTexts[ev.id] || "").length;
+              return (
+                <div key={ev.id} style={card}>
+
+                  {/* Olay başlık satırı */}
+                  <div className="olay-header" style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "12px", flexWrap: "wrap" }}>
+                    <input value={ev.name} onChange={e => updateName(ev.id, e.target.value)}
+                      style={{ flex: 1, minWidth: "80px", border: "none", borderBottom: "1px solid #ddd", fontSize: "15px", fontWeight: "bold", background: "transparent", outline: "none", padding: "2px 0" }} />
+                    <div style={{ display: "flex", background: "#f0f0ec", borderRadius: "6px", padding: "2px", flexShrink: 0 }}>
+                      {["Manuel", "Yapıştır"].map((lbl, li) => {
+                        const active = li === 0 ? !isPaste : isPaste;
+                        return (
+                          <button key={lbl} onClick={() => setPasteModes(p => ({ ...p, [ev.id]: li === 1 }))}
+                            style={{ padding: "5px 11px", fontSize: "12px", cursor: "pointer", border: "none", borderRadius: "5px", background: active ? "#111" : "transparent", color: active ? "#fff" : "#aaa" }}>
+                            {lbl}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {events.length > 1 && (
+                      <button onClick={() => removeEvent(ev.id)}
+                        style={{ background: "none", border: "none", color: "#ccc", cursor: "pointer", fontSize: "18px", padding: "0", flexShrink: 0 }}>✕</button>
+                    )}
+                  </div>
+
+                  {isPaste ? (
+                    <div>
+                      <div style={{ fontSize: "12px", color: "#aaa", marginBottom: "6px" }}>Oranları yapıştır — boşluk veya virgülle</div>
+                      <textarea value={pasteTexts[ev.id] || ""} onChange={e => setPasteTexts(p => ({ ...p, [ev.id]: e.target.value }))}
+                        placeholder={"2.71 3.21 1.91 1.46\nveya: 2.71, 3.21, 1.91"} rows={4}
+                        style={{ ...inp, resize: "vertical", background: "#fafaf8", lineHeight: "1.6" }} />
+                      {parsedCount > 0 && (
+                        <div style={{ fontSize: "12px", color: "#666", marginTop: "5px" }}>{parsedCount} oran algılandı</div>
+                      )}
+                      <button onClick={() => applyPaste(ev.id)} disabled={parsedCount < 2}
+                        style={{ ...btnPrimary, marginTop: "10px", opacity: parsedCount < 2 ? 0.4 : 1 }}>Uygula →</button>
+                    </div>
+                  ) : (
+                    <div>
+                      {ev.outcomes.map((o, oi) => (
+                        <div key={oi} style={{ display: "flex", gap: "8px", marginBottom: "8px", alignItems: "center" }}>
+                          <input value={o.label} onChange={e => updateOutcome(ev.id, oi, "label", e.target.value)}
+                            placeholder="ad" style={{ ...inp, width: "60px", flexShrink: 0 }} />
+                          <input type="number" step="0.01" min="1.01" value={o.odd}
+                            onChange={e => updateOutcome(ev.id, oi, "odd", e.target.value)}
+                            placeholder="oran" style={{ ...inp, fontWeight: "bold", fontSize: "16px" }} />
+                          {ev.outcomes.length > 2 && (
+                            <button onClick={() => removeOutcome(ev.id, oi)}
+                              style={{ background: "none", border: "none", color: "#ccc", cursor: "pointer", fontSize: "18px", flexShrink: 0 }}>✕</button>
+                          )}
+                        </div>
+                      ))}
+                      <button onClick={() => addOutcome(ev.id)}
+                        style={{ background: "none", border: "1px dashed #ccc", borderRadius: "6px", color: "#aaa", fontSize: "12px", padding: "6px 12px", width: "100%", cursor: "pointer", marginTop: "4px" }}>
+                        + sonuç ekle
+                      </button>
+                      <div style={{ fontSize: "11px", color: "#bbb", marginTop: "6px", textAlign: "right" }}>
+                        {ev.outcomes.filter(o => o.odd !== "" && parseFloat(o.odd) > 1).length} / {ev.outcomes.length} oran girildi
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            <button style={btnPrimary} onClick={addEvent}>+ Olay Ekle</button>
+            {arb && (
+              <div style={{ textAlign: "center", fontSize: "12px", color: "#aaa", marginTop: "8px" }}>
+                {events.map(e => e.outcomes.length).join(" × ")} = {result.count} kombinasyon
+              </div>
+            )}
+          </div>
+
+          {/* SAĞ */}
+          <div className="result-col">
+            <div style={card}>
+              <div style={{ fontSize: "10px", color: "#aaa", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "8px" }}>Test Bütçesi (₺)</div>
+              <input type="number" placeholder="örn: 1000" value={budget} onChange={e => setBudget(e.target.value)}
+                style={{ ...inp, fontSize: "22px", fontWeight: "bold" }} />
+            </div>
+
+            {!result ? (
+              <div style={{ ...card, padding: "40px 16px", textAlign: "center", color: "#bbb", fontSize: "13px" }}>
+                Tüm oranları gir (her oran &gt; 1.00)
+              </div>
+            ) : result.error ? (
+              <div style={{ ...card, color: "#c0392b", fontSize: "13px" }}>⚠️ Hesaplama hatası. Oranları kontrol et.</div>
+            ) : result.tooMany ? (
+              <div style={{ ...card, color: "#c0392b", fontSize: "13px" }}>⚠️ {result.count.toLocaleString()} kombinasyon — çok fazla.</div>
+            ) : (
+              <>
+                {/* Arbitraj banner */}
+                <div style={{ background: result.hasArb ? "#f2fbf6" : "#fff7f6", border: `2px solid ${color}`, borderRadius: "10px", padding: "14px 16px", marginBottom: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <div style={{ fontWeight: "bold", fontSize: "15px", color }}>{result.hasArb ? "✓ ARBİTRAJ VAR" : "✗ ARBİTRAJ YOK"}</div>
+                    <div style={{ fontSize: "11px", color: "#aaa", marginTop: "4px" }}>
+                      {result.count} kombinasyon · OKEK: {result.okekDisplay}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: "26px", fontWeight: "bold", color }}>
+                    {result.hasArb ? "+" : ""}{result.profitPct.toFixed(3)}%
+                  </div>
+                </div>
+
+                {/* Tablo */}
+                <div style={{ background: "#fff", border: "1px solid #e8e8e4", borderRadius: "10px", overflow: "hidden", marginBottom: "12px" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 68px 68px", gap: "4px", padding: "8px 12px", borderBottom: "1px solid #eee" }}>
+                    {["Kombinasyon", "Yatır", "Gelir"].map((h, i) => (
+                      <div key={h} style={{ fontSize: "10px", color: "#aaa", textTransform: "uppercase", letterSpacing: "1px", textAlign: i > 0 ? "right" : "left" }}>{h}</div>
+                    ))}
+                  </div>
+                  <div style={{ maxHeight: "380px", overflowY: "auto" }}>
+                    {result.combos.map((c, i) => {
+                      const sv = budgetNum > 0 ? (c.stakeN / result.totalN) * budgetNum : c.stakeN;
+                      const pv = budgetNum > 0 ? (c.payoutN / result.totalN) * budgetNum : c.payoutN;
+                      return (
+                        <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 68px 68px", gap: "4px", padding: "7px 12px", borderBottom: "1px solid #f5f5f3", alignItems: "center", background: i % 2 ? "#faf9f6" : "#fff" }}>
+                          <div style={{ fontSize: "11px", color: "#555", lineHeight: "1.5", wordBreak: "break-word" }}>{c.label}</div>
+                          <div style={{ fontSize: "12px", fontWeight: "bold", textAlign: "right" }}>{budgetNum > 0 ? `${sv.toFixed(2)}₺` : sv.toFixed(2)}</div>
+                          <div style={{ fontSize: "12px", color: "#1a9a5c", textAlign: "right" }}>{budgetNum > 0 ? `${pv.toFixed(2)}₺` : pv.toFixed(2)}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 68px 68px", gap: "4px", padding: "9px 12px", borderTop: "2px solid #eee" }}>
+                    <div style={{ fontSize: "12px", fontWeight: "bold" }}>TOPLAM</div>
+                    <div style={{ fontSize: "12px", fontWeight: "bold", textAlign: "right" }}>{budgetNum > 0 ? `${budgetNum.toFixed(2)}₺` : result.totalN.toFixed(2)}</div>
+                    <div style={{ fontSize: "12px", fontWeight: "bold", color, textAlign: "right" }}>
+                      {budgetNum > 0 ? `${result.hasArb ? "+" : ""}${(budgetNum * result.profitPct / 100).toFixed(2)}₺` : `${result.hasArb ? "+" : ""}${result.profitPct.toFixed(3)}%`}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ fontSize: "11px", color: "#bbb", lineHeight: "1.7" }}>
+                  <strong style={{ color: "#aaa" }}>OKEK yöntemi:</strong> Oranlar kesire çevrilir, paydaların OKEK'i alınır. Her kombinasyona OKEK ÷ kendi oranı kadar birim yatırılır. Toplam &lt; minimum gelir → arbitraj.
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
