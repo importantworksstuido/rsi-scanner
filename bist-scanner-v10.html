@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BIST Temel Değerler</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;700;800&display=swap');
+:root{--bg:#f7f7f3;--surface:#fff;--border:#e4e4dc;--ink:#1a1a2e;--green:#15803d;--red:#dc2626;--text:#222;--muted:#9a9a90;--yellow:#b45309;--hover:#f0f0ea;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospace;min-height:100vh;}
+
+/* sticky wrapper - tüm sabit elemanlar burada */
+.sticky-top{position:sticky;top:0;z-index:200;background:var(--surface);}
+
+header{border-bottom:2px solid var(--ink);padding:0 14px;height:50px;display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.logo{font-family:'Syne',sans-serif;font-weight:800;font-size:1rem;color:var(--ink);white-space:nowrap;}
+.logo span{color:var(--muted);font-weight:400;}
+.status-bar{display:flex;align-items:center;gap:6px;font-size:.6rem;color:var(--muted);flex:1;justify-content:center;overflow:hidden;}
+.status-bar span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--muted);flex-shrink:0;display:inline-block;}
+.dot.live{background:var(--green);box-shadow:0 0 4px var(--green);animation:blink 2s infinite;}
+.dot.loading{background:var(--yellow);animation:blink .4s infinite;}
+.dot.error{background:var(--red);}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+.scan-btn{background:var(--ink);color:#fff;border:none;padding:8px 14px;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:.7rem;cursor:pointer;white-space:nowrap;flex-shrink:0;}
+.scan-btn:disabled{background:var(--muted);cursor:not-allowed;}
+
+.progress-bar{height:3px;background:var(--border);}
+.progress-fill{height:100%;background:var(--ink);width:0%;transition:width .3s;}
+
+/* sütun başlıkları - sticky-top içinde */
+.col-header{
+  display:grid;
+  grid-template-columns:80px 1fr 1fr 1fr 1fr 1fr;
+  border-bottom:2px solid var(--ink);
+  background:var(--surface);
+}
+.col-header div{
+  padding:8px 6px;font-size:.55rem;text-transform:uppercase;
+  letter-spacing:.6px;color:var(--muted);white-space:nowrap;
+}
+.col-header div:not(:first-child){text-align:right;cursor:pointer;user-select:none;}
+.col-header div:not(:first-child):hover{color:var(--ink);}
+.col-header div.active{color:var(--ink);}
+
+/* stats */
+.stats-row{display:flex;gap:1px;background:var(--border);}
+.stat-box{flex:1;background:var(--surface);padding:8px 4px;text-align:center;}
+.stat-val{font-size:1rem;font-weight:700;color:var(--ink);}
+.stat-label{font-size:.48rem;color:var(--muted);margin-top:1px;text-transform:uppercase;letter-spacing:.4px;}
+
+/* toolbar */
+.toolbar{display:flex;align-items:center;gap:8px;padding:7px 12px;background:var(--surface);border-bottom:1px solid var(--border);}
+.toolbar-label{font-size:.58rem;color:var(--muted);flex-shrink:0;}
+#search-box{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 8px;font-family:'JetBrains Mono',monospace;font-size:.7rem;flex:1;min-width:0;outline:none;}
+#search-box:focus{border-color:var(--ink);}
+.count-badge{font-size:.58rem;color:var(--muted);white-space:nowrap;flex-shrink:0;}
+
+/* veri satırları */
+.data-list{padding-bottom:60px;}
+.data-row{
+  display:grid;
+  grid-template-columns:80px 1fr 1fr 1fr 1fr 1fr;
+  border-bottom:1px solid var(--border);
+  transition:background .1s;
+}
+.data-row:hover{background:var(--hover);}
+.data-row div{padding:10px 6px;font-size:.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.cell-sym{font-weight:700;font-size:.75rem;color:var(--ink);}
+.cell-sym a{color:inherit;text-decoration:none;}
+.cell-num{text-align:right;color:#555;}
+.cell-num.pos{color:var(--green);font-weight:700;}
+.cell-num.neg{color:var(--red);}
+.null-val{color:#ccc;font-size:.58rem;}
+.badge{display:inline-block;padding:1px 4px;font-size:.48rem;font-weight:700;margin-left:2px;border-radius:2px;}
+.badge-good{background:#dcfce7;color:#15803d;}
+.badge-bad{background:#fee2e2;color:#b91c1c;}
+
+.empty-state{text-align:center;padding:70px 20px;color:var(--muted);}
+.empty-state .big{font-size:2rem;margin-bottom:10px;opacity:.12;}
+.empty-state p{font-size:.74rem;line-height:2.2;}
+.info-box{background:#f0fdf4;border-left:3px solid var(--green);color:var(--green);padding:7px 14px;margin:8px 12px;font-size:.6rem;}
+.err-box{background:#fff5f5;border-left:3px solid var(--red);color:#b91c1c;padding:10px 14px;margin:8px 12px;font-size:.65rem;line-height:1.7;}
+.err-btn{background:var(--ink);color:#fff;border:none;padding:6px 12px;font-family:monospace;font-weight:700;cursor:pointer;font-size:.65rem;margin-top:7px;margin-right:5px;}
+</style>
+</head>
+<body>
+
+<div class="sticky-top">
+  <header>
+    <div class="logo">BIST <span>/ Temel</span></div>
+    <div class="status-bar"><span class="dot" id="dot"></span><span id="sTxt">Hazır</span></div>
+    <button class="scan-btn" id="scanBtn" onclick="startScan()">▶ TARA</button>
+  </header>
+  <div class="progress-bar"><div class="progress-fill" id="prog"></div></div>
+
+  <div class="stats-row" id="statsRow" style="display:none">
+    <div class="stat-box"><div class="stat-val" id="sN">0</div><div class="stat-label">Hisse</div></div>
+    <div class="stat-box"><div class="stat-val" id="sFK">-</div><div class="stat-label">Ort. F/K</div></div>
+    <div class="stat-box"><div class="stat-val" id="sPD">-</div><div class="stat-label">Ort. PD/DD</div></div>
+    <div class="stat-box"><div class="stat-val" id="sFKMin">-</div><div class="stat-label">Min F/K</div></div>
+  </div>
+
+  <div class="toolbar" id="toolbar" style="display:none">
+    <span class="toolbar-label">ARA:</span>
+    <input type="text" id="search-box" placeholder="Sembol..." oninput="applyFilter()">
+    <span class="count-badge" id="rowCount">0 hisse</span>
+  </div>
+
+  <div class="col-header" id="colHeader" style="display:none">
+    <div>Sembol</div>
+    <div onclick="sortBy('fk')" id="ch-fk">F/K ⇅</div>
+    <div onclick="sortBy('pddd')" id="ch-pddd">PD/DD ⇅</div>
+    <div onclick="sortBy('favok')" id="ch-favok">FAVÖK ⇅</div>
+    <div onclick="sortBy('pd')" id="ch-pd">Piy.Değ ⇅</div>
+    <div onclick="sortBy('hbk')" id="ch-hbk">HBK ⇅</div>
+  </div>
+</div>
+
+<div id="infoBox" class="info-box" style="display:none"></div>
+<div id="errBox" class="err-box" style="display:none"></div>
+
+<div id="emptyState" class="empty-state">
+  <div class="big">◈</div>
+  <p>TARA butonuna bas<br>Yahoo Finance gerçek zamanlı veri<br><br>
+  <small style="opacity:.4;font-size:.6rem">F/K · PD/DD · FAVÖK · Piy.Değ · HBK</small></p>
+</div>
+
+<div class="data-list" id="dataList"></div>
+
+<script>
+const KEY  = '87ef8107e6msh4dad0253e88f1b7p1bbe2ejsn68f670ef1204';
+const HOST = 'apidojo-yahoo-finance-v1.p.rapidapi.com';
+
+const LISTE = [...new Set([
+  'THYAO','EREGL','SASA','GARAN','ASELS','KCHOL','AKBNK','TUPRS','BIMAS','TOASO',
+  'FROTO','YKBNK','SAHOL','PGSUS','TAVHL','EKGYO','ARCLK','VESTL','HALKB','VAKBN',
+  'KOZAL','KRDMD','MGROS','DOHOL','OYAKC','CEMTS','CIMSA','ULKER','CCOLA','AEFES',
+  'PETKM','TTKOM','TCELL','LOGO','INDES','MPARK','BRISA','OTKAR','GUBRF','KARSN',
+  'SOKM','SISE','TSKB','ISCTR','ALARK','ENKAI','TKFEN','AGHOL','DOAS','KAREL',
+  'MAVI','NTHOL','SKBNK','BANVT','CLEBI','HEKTS','KERVT','SELEC','TMPOL','VKGYO'
+])];
+
+let allData=[], sortCol=null, sortDir=1, searchVal='';
+
+function setStatus(t,txt){document.getElementById('dot').className='dot '+t;document.getElementById('sTxt').textContent=txt;}
+function setProg(p){document.getElementById('prog').style.width=p+'%';}
+function n(v){if(v==null)return null;const x=parseFloat(v);return isNaN(x)?null:x;}
+
+async function fetchQuotes(symbols){
+  const syms=symbols.map(s=>s+'.IS').join(',');
+  const url=`https://${HOST}/market/v2/get-quotes?region=TR&symbols=${encodeURIComponent(syms)}`;
+  const res=await fetch(url,{headers:{'x-rapidapi-key':KEY,'x-rapidapi-host':HOST}});
+  if(!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+async function startScan(){
+  const btn=document.getElementById('scanBtn');
+  btn.disabled=true; allData=[];
+  document.getElementById('errBox').style.display='none';
+  document.getElementById('infoBox').style.display='none';
+  document.getElementById('emptyState').style.display='none';
+  document.getElementById('statsRow').style.display='none';
+  document.getElementById('toolbar').style.display='none';
+  document.getElementById('colHeader').style.display='none';
+  document.getElementById('dataList').innerHTML='';
+  setStatus('loading','Bağlanıyor...');
+  setProg(5);
+
+  try{
+    const BATCH=10;
+    for(let i=0;i<LISTE.length;i+=BATCH){
+      setStatus('loading',`${Math.min(i+BATCH,LISTE.length)}/${LISTE.length}...`);
+      setProg(10+Math.round((i/LISTE.length)*85));
+      try{
+        const data=await fetchQuotes(LISTE.slice(i,i+BATCH));
+        (data?.quoteResponse?.result||[]).forEach(q=>{
+          allData.push({
+            sembol:(q.symbol||'').replace('.IS',''),
+            fk:   n(q.trailingPE),
+            pddd: n(q.priceToBook),
+            favok:n(q.ebitda),
+            pd:   n(q.marketCap),
+            hbk:  n(q.epsTrailingTwelveMonths),
+          });
+        });
+        renderStats(); renderList();
+        document.getElementById('statsRow').style.display='flex';
+        document.getElementById('toolbar').style.display='flex';
+        document.getElementById('colHeader').style.display='grid';
+      }catch(e){}
+      await new Promise(r=>setTimeout(r,250));
+    }
+    setProg(100);
+    if(allData.length===0) throw new Error('Hiç veri gelmedi');
+    setStatus('live',`${allData.length} hisse · ${new Date().toLocaleTimeString('tr-TR')}`);
+    document.getElementById('infoBox').style.display='block';
+    document.getElementById('infoBox').textContent=`✓ Gerçek zamanlı · Yahoo Finance · ${new Date().toLocaleString('tr-TR')}`;
+  }catch(err){
+    setStatus('error',err.message);
+    setProg(0);
+    document.getElementById('errBox').style.display='block';
+    document.getElementById('errBox').innerHTML=`<strong>Hata:</strong> ${err.message}<br>
+      <button class="err-btn" onclick="loadDemo()">DEMO MOD</button>
+      <button class="err-btn" onclick="startScan()" style="background:#555">TEKRAR DENE</button>`;
+  }
+  btn.disabled=false;
+}
+
+function loadDemo(){
+  document.getElementById('errBox').style.display='none';
+  const d=[
+    ['THYAO',8.2,1.4,42e9,180e9,14.5],['EREGL',6.1,0.9,38e9,95e9,8.2],
+    ['SASA',12.4,2.1,8.5e9,45e9,3.1],['GARAN',4.8,0.7,null,210e9,22.4],
+    ['ASELS',18.6,3.4,6.2e9,75e9,5.8],['KCHOL',7.3,1.1,null,185e9,18.2],
+    ['AKBNK',5.2,0.8,null,195e9,19.1],['TUPRS',5.8,1.3,22e9,115e9,28.4],
+    ['BIMAS',22.1,5.6,4.1e9,92e9,4.2],['TOASO',9.4,2.2,8.8e9,62e9,7.8],
+  ];
+  allData=d.map(r=>({sembol:r[0],fk:r[1],pddd:r[2],favok:r[3],pd:r[4],hbk:r[5]}));
+  setStatus('live',allData.length+' hisse (DEMO)');
+  renderStats();renderList();
+  document.getElementById('statsRow').style.display='flex';
+  document.getElementById('toolbar').style.display='flex';
+  document.getElementById('colHeader').style.display='grid';
+}
+
+function renderStats(){
+  document.getElementById('sN').textContent=allData.length;
+  const fks=allData.map(r=>r.fk).filter(v=>v&&v>0&&v<200);
+  const pds=allData.map(r=>r.pddd).filter(v=>v&&v>0);
+  const avg=a=>a.length?(a.reduce((s,v)=>s+v,0)/a.length).toFixed(1):'-';
+  document.getElementById('sFK').textContent=avg(fks);
+  document.getElementById('sPD').textContent=avg(pds);
+  document.getElementById('sFKMin').textContent=fks.length?Math.min(...fks).toFixed(1):'-';
+}
+
+function sortBy(col){
+  if(sortCol===col)sortDir*=-1;else{sortCol=col;sortDir=1;}
+  ['fk','pddd','favok','pd','hbk'].forEach(c=>{
+    const el=document.getElementById('ch-'+c);
+    if(el) el.textContent={fk:'F/K',pddd:'PD/DD',favok:'FAVÖK',pd:'Piy.Değ',hbk:'HBK'}[c]+' ⇅';
+    if(el) el.classList.remove('active');
+  });
+  const el=document.getElementById('ch-'+col);
+  if(el){el.textContent={fk:'F/K',pddd:'PD/DD',favok:'FAVÖK',pd:'Piy.Değ',hbk:'HBK'}[col]+(sortDir===1?' ↑':' ↓');el.classList.add('active');}
+  renderList();
+}
+
+function applyFilter(){searchVal=document.getElementById('search-box').value.toLowerCase();renderList();}
+
+function fmt(v,d=2){
+  if(v===null||isNaN(v))return '<span class="null-val">—</span>';
+  return v.toLocaleString('tr-TR',{minimumFractionDigits:d,maximumFractionDigits:d});
+}
+function fmtBig(v){
+  if(v===null||isNaN(v))return '<span class="null-val">—</span>';
+  if(Math.abs(v)>=1e12)return (v/1e12).toFixed(1)+'T';
+  if(Math.abs(v)>=1e9)return (v/1e9).toFixed(1)+'B';
+  if(Math.abs(v)>=1e6)return (v/1e6).toFixed(0)+'M';
+  return v.toFixed(0);
+}
+
+function renderList(){
+  let data=[...allData];
+  if(searchVal)data=data.filter(r=>r.sembol.toLowerCase().includes(searchVal));
+  if(sortCol){
+    data.sort((a,b)=>{
+      const av=a[sortCol],bv=b[sortCol];
+      if(av===null&&bv===null)return 0;
+      if(av===null)return 1;if(bv===null)return -1;
+      return(av-bv)*sortDir;
+    });
+  }
+  document.getElementById('rowCount').textContent=data.length+' hisse';
+  document.getElementById('dataList').innerHTML=data.map(r=>{
+    const fkC=r.fk!==null&&r.fk<8?'pos':r.fk!==null&&r.fk>25?'neg':'';
+    const fkB=r.fk!==null&&r.fk<8?'<span class="badge badge-good">UCUZ</span>':r.fk!==null&&r.fk>25?'<span class="badge badge-bad">PAHALI</span>':'';
+    const pdC=r.pddd!==null&&r.pddd<1?'pos':'';
+    return`<div class="data-row">
+      <div class="cell-sym"><a href="https://finance.yahoo.com/quote/${r.sembol}.IS" target="_blank">${r.sembol}</a></div>
+      <div class="cell-num ${fkC}">${fmt(r.fk,1)}${fkB}</div>
+      <div class="cell-num ${pdC}">${fmt(r.pddd,2)}</div>
+      <div class="cell-num">${fmtBig(r.favok)}</div>
+      <div class="cell-num">${fmtBig(r.pd)}</div>
+      <div class="cell-num">${fmt(r.hbk,2)}</div>
+    </div>`;
+  }).join('');
+}
+</script>
+</body>
+</html>
