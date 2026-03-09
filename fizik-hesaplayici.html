@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fizik Hesap Makinesi</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5f2eb;
+    --card: #ffffff;
+    --ink: #1a1a1a;
+    --ink-soft: #555;
+    --accent: #d4500a;
+    --accent2: #1a6b4a;
+    --accent3: #1a3a6b;
+    --accent4: #6b1a5a;
+    --accent5: #6b5a1a;
+    --border: #ddd8ce;
+    --result-bg: #f0ede6;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    font-family: 'Syne', sans-serif;
+    color: var(--ink);
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  header {
+    padding: 48px 40px 32px;
+    border-bottom: 2px solid var(--ink);
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+
+  .header-title {
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -2px;
+  }
+
+  .header-title span {
+    color: var(--accent);
+  }
+
+  .header-sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--ink-soft);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-top: 8px;
+  }
+
+  .header-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    border: 1.5px solid var(--border);
+    padding: 6px 14px;
+    border-radius: 2px;
+    color: var(--ink-soft);
+    letter-spacing: 0.05em;
+  }
+
+  /* NAV TABS */
+  nav {
+    display: flex;
+    overflow-x: auto;
+    border-bottom: 2px solid var(--border);
+    scrollbar-width: none;
+    padding: 0 40px;
+    gap: 0;
+  }
+  nav::-webkit-scrollbar { display: none; }
+
+  .tab-btn {
+    padding: 16px 24px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    white-space: nowrap;
+    transition: color 0.2s, border-color 0.2s;
+    position: relative;
+  }
+
+  .tab-btn:hover { color: var(--ink); }
+
+  .tab-btn.active {
+    color: var(--ink);
+    font-weight: 500;
+  }
+
+  .tab-btn[data-tab="0"].active { border-bottom-color: var(--accent); }
+  .tab-btn[data-tab="1"].active { border-bottom-color: var(--accent2); }
+  .tab-btn[data-tab="2"].active { border-bottom-color: var(--accent3); }
+  .tab-btn[data-tab="3"].active { border-bottom-color: var(--accent4); }
+  .tab-btn[data-tab="4"].active { border-bottom-color: var(--accent5); }
+
+  /* MAIN */
+  main {
+    padding: 48px 40px;
+    max-width: 900px;
+  }
+
+  .calculator { display: none; }
+  .calculator.active { display: block; animation: fadeUp 0.35s ease; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* CALC HEADER */
+  .calc-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    margin-bottom: 36px;
+  }
+
+  .calc-number {
+    font-size: 4rem;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -3px;
+    opacity: 0.12;
+    font-family: 'Syne', sans-serif;
+  }
+
+  .calc-info h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+
+  .calc-info p {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+    margin-top: 4px;
+    line-height: 1.6;
+  }
+
+  /* FORMULA BOX */
+  .formula-box {
+    background: var(--ink);
+    color: #f5f2eb;
+    padding: 16px 24px;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    margin-bottom: 32px;
+    letter-spacing: 0.03em;
+    line-height: 1.8;
+  }
+
+  .formula-box .formula-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    opacity: 0.5;
+    margin-bottom: 6px;
+  }
+
+  /* INPUT GRID */
+  .input-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+    margin-bottom: 28px;
+  }
+
+  .field label {
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-soft);
+    margin-bottom: 8px;
+  }
+
+  .field input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1.5px solid var(--border);
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1rem;
+    background: var(--card);
+    color: var(--ink);
+    transition: border-color 0.2s;
+    outline: none;
+  }
+
+  .field input:focus { border-color: var(--ink); }
+
+  /* CALCULATE BUTTON */
+  .calc-btn {
+    padding: 14px 36px;
+    border: 2px solid var(--ink);
+    border-radius: 3px;
+    background: var(--ink);
+    color: var(--bg);
+    font-family: 'Syne', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+  }
+
+  .calc-btn:hover {
+    background: transparent;
+    color: var(--ink);
+  }
+
+  /* RESULTS */
+  .results {
+    margin-top: 28px;
+    background: var(--result-bg);
+    border: 1.5px solid var(--border);
+    border-radius: 4px;
+    padding: 24px;
+    display: none;
+  }
+
+  .results.show { display: block; animation: fadeUp 0.3s ease; }
+
+  .results-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--ink-soft);
+    margin-bottom: 16px;
+  }
+
+  .result-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    gap: 16px;
+  }
+
+  .result-row:last-child { border-bottom: none; }
+
+  .result-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+    flex: 1;
+  }
+
+  .result-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: var(--ink);
+    text-align: right;
+  }
+
+  .error-msg {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    color: #c0392b;
+    padding: 12px 0;
+  }
+
+  /* DIVIDER */
+  hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+
+  /* FOOTER */
+  footer {
+    padding: 24px 40px;
+    border-top: 2px solid var(--border);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--ink-soft);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  @media (max-width: 600px) {
+    header, main, footer { padding-left: 20px; padding-right: 20px; }
+    nav { padding: 0 20px; }
+    .tab-btn { padding: 14px 14px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="header-title">Fizik<br><span>Hesap</span> Makinesi</div>
+    <div class="header-sub">5 farklı fizik konusu · Anlık hesaplama</div>
+  </div>
+  <div class="header-badge">v1.0 · GitHub Pages</div>
+</header>
+
+<nav>
+  <button class="tab-btn active" data-tab="0" onclick="switchTab(0)">01 · Vektör Toplama</button>
+  <button class="tab-btn" data-tab="1" onclick="switchTab(1)">02 · Serbest Düşüş</button>
+  <button class="tab-btn" data-tab="2" onclick="switchTab(2)">03 · Newton 2. Yasa</button>
+  <button class="tab-btn" data-tab="3" onclick="switchTab(3)">04 · Salıncak</button>
+  <button class="tab-btn" data-tab="4" onclick="switchTab(4)">05 · Yay Enerjisi</button>
+</nav>
+
+<main>
+
+  <!-- SORU 1: Vektör Toplama -->
+  <div class="calculator active" id="calc-0">
+    <div class="calc-header">
+      <div class="calc-number">01</div>
+      <div class="calc-info">
+        <h2>Vektör Toplama</h2>
+        <p>İki vektörün bileşenlerini girerek bileşke vektörü ve büyüklüğünü hesaplayın.</p>
+      </div>
+    </div>
+    <div class="formula-box">
+      <div class="formula-label">Formüller</div>
+      C = (Ax + Bx) î + (Ay + By) ĵ<br>
+      |C| = √(Cx² + Cy²)<br>
+      θ = arctan(Cy / Cx)
+    </div>
+    <div class="input-grid">
+      <div class="field"><label>Ax (x bileşeni)</label><input type="number" id="v_Ax" placeholder="örn: 3"></div>
+      <div class="field"><label>Ay (y bileşeni)</label><input type="number" id="v_Ay" placeholder="örn: 4"></div>
+      <div class="field"><label>Bx (x bileşeni)</label><input type="number" id="v_Bx" placeholder="örn: 1"></div>
+      <div class="field"><label>By (y bileşeni)</label><input type="number" id="v_By" placeholder="örn: 2"></div>
+    </div>
+    <button class="calc-btn" onclick="calcVector()">Hesapla</button>
+    <div class="results" id="res-0">
+      <div class="results-label">Sonuçlar</div>
+      <div id="res-0-content"></div>
+    </div>
+  </div>
+
+  <!-- SORU 2: Serbest Düşüş -->
+  <div class="calculator" id="calc-1">
+    <div class="calc-header">
+      <div class="calc-number">02</div>
+      <div class="calc-info">
+        <h2>Serbest Düşüş</h2>
+        <p>Verilen yükseklikten düşen cismin çarpma hızını ve süresini hesaplayın.</p>
+      </div>
+    </div>
+    <div class="formula-box">
+      <div class="formula-label">Formüller</div>
+      h (m) = ft / 3.2808<br>
+      v = √(2 · g · h)&nbsp;&nbsp;[g = 9.8 m/s²]<br>
+      t = √(2h / g)
+    </div>
+    <div class="input-grid">
+      <div class="field"><label>Yükseklik (ft)</label><input type="number" id="f_ft" placeholder="örn: 100" min="0"></div>
+    </div>
+    <button class="calc-btn" onclick="calcFall()">Hesapla</button>
+    <div class="results" id="res-1">
+      <div class="results-label">Sonuçlar</div>
+      <div id="res-1-content"></div>
+    </div>
+  </div>
+
+  <!-- SORU 3: Newton 2. Yasa -->
+  <div class="calculator" id="calc-2">
+    <div class="calc-header">
+      <div class="calc-number">03</div>
+      <div class="calc-info">
+        <h2>Newton'un 2. Yasası</h2>
+        <p>Uygulanan kuvvetler ve kütle ile sistemin ivmesini hesaplayın.</p>
+      </div>
+    </div>
+    <div class="formula-box">
+      <div class="formula-label">Formüller</div>
+      F_net = F1 + F2<br>
+      a = F_net / M&nbsp;&nbsp;[F=ma]
+    </div>
+    <div class="input-grid">
+      <div class="field"><label>F1 (N)</label><input type="number" id="n_F1" placeholder="örn: 10"></div>
+      <div class="field"><label>F2 (N)</label><input type="number" id="n_F2" placeholder="örn: 5"></div>
+      <div class="field"><label>Kütle M (kg)</label><input type="number" id="n_M" placeholder="örn: 3" min="0.001"></div>
+    </div>
+    <button class="calc-btn" onclick="calcNewton()">Hesapla</button>
+    <div class="results" id="res-2">
+      <div class="results-label">Sonuçlar</div>
+      <div id="res-2-content"></div>
+    </div>
+  </div>
+
+  <!-- SORU 4: Salıncak -->
+  <div class="calculator" id="calc-3">
+    <div class="calc-header">
+      <div class="calc-number">04</div>
+      <div class="calc-info">
+        <h2>Salıncak — Dairesel Hareket</h2>
+        <p>Salıncağın en alt noktasındaki hızı Newton'un 2. yasasından hesaplayın.</p>
+      </div>
+    </div>
+    <div class="formula-box">
+      <div class="formula-label">Formüller</div>
+      T - Mg = Mv²/R&nbsp;&nbsp;(en alt nokta)<br>
+      v = √(R · (T - Mg) / M)&nbsp;&nbsp;[g = 9.81 m/s²]
+    </div>
+    <div class="input-grid">
+      <div class="field"><label>Kütle M (kg)</label><input type="number" id="s_M" placeholder="örn: 30" min="0.001"></div>
+      <div class="field"><label>İp Uzunluğu R (m)</label><input type="number" id="s_R" placeholder="örn: 2" min="0.001"></div>
+      <div class="field"><label>Gerilme Kuvveti T (N)</label><input type="number" id="s_T" placeholder="örn: 400"></div>
+    </div>
+    <button class="calc-btn" onclick="calcSwing()">Hesapla</button>
+    <div class="results" id="res-3">
+      <div class="results-label">Sonuçlar</div>
+      <div id="res-3-content"></div>
+    </div>
+  </div>
+
+  <!-- SORU 5: Yay Enerjisi -->
+  <div class="calculator" id="calc-4">
+    <div class="calc-header">
+      <div class="calc-number">05</div>
+      <div class="calc-info">
+        <h2>Yay Enerjisi — Enerji Korunumu</h2>
+        <p>Yayın potansiyel enerjisi eğik düzlemde kinetik ve potansiyel enerjiye dönüşüm.</p>
+      </div>
+    </div>
+    <div class="formula-box">
+      <div class="formula-label">Formüller</div>
+      Wi = ½ · k · x1²&nbsp;&nbsp;(yay enerjisi)<br>
+      Ws = M · g · sin(θ) · x2&nbsp;&nbsp;(yerçekimi işi)<br>
+      Wi = Ws → x2 = (k · x1²) / (2 · M · g · sin(θ))
+    </div>
+    <div class="input-grid">
+      <div class="field"><label>Yay Sabiti k (N/m)</label><input type="number" id="y_k" placeholder="örn: 200" min="0"></div>
+      <div class="field"><label>Sıkışma x1 (m)</label><input type="number" id="y_x1" placeholder="örn: 0.1" min="0"></div>
+      <div class="field"><label>Kütle M (kg)</label><input type="number" id="y_M" placeholder="örn: 2" min="0.001"></div>
+      <div class="field"><label>Eğim Açısı θ (derece)</label><input type="number" id="y_theta" placeholder="örn: 30" min="0" max="89"></div>
+    </div>
+    <button class="calc-btn" onclick="calcSpring()">Hesapla</button>
+    <div class="results" id="res-4">
+      <div class="results-label">Sonuçlar</div>
+      <div id="res-4-content"></div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  <span>Fizik Hesap Makinesi</span>
+  <span>g = 9.8 m/s² (düşüş) · g = 9.81 m/s² (diğer)</span>
+</footer>
+
+<script>
+  // Tab switching
+  function switchTab(index) {
+    document.querySelectorAll('.calculator').forEach((c, i) => {
+      c.classList.toggle('active', i === index);
+    });
+    document.querySelectorAll('.tab-btn').forEach((b, i) => {
+      b.classList.toggle('active', i === index);
+    });
+  }
+
+  // Helpers
+  function showResult(id, rows) {
+    const box = document.getElementById('res-' + id);
+    const content = document.getElementById('res-' + id + '-content');
+    box.classList.add('show');
+    content.innerHTML = rows.map(r =>
+      `<div class="result-row">
+        <span class="result-name">${r.name}</span>
+        <span class="result-value">${r.value}</span>
+      </div>`
+    ).join('');
+  }
+
+  function showError(id, msg) {
+    const box = document.getElementById('res-' + id);
+    const content = document.getElementById('res-' + id + '-content');
+    box.classList.add('show');
+    content.innerHTML = `<div class="error-msg">⚠ ${msg}</div>`;
+  }
+
+  function fmt(n, unit = '') {
+    return Number(n).toFixed(4).replace(/\.?0+$/, '') + (unit ? ' ' + unit : '');
+  }
+
+  // SORU 1: Vektör
+  function calcVector() {
+    const Ax = parseFloat(document.getElementById('v_Ax').value);
+    const Ay = parseFloat(document.getElementById('v_Ay').value);
+    const Bx = parseFloat(document.getElementById('v_Bx').value);
+    const By = parseFloat(document.getElementById('v_By').value);
+    if ([Ax,Ay,Bx,By].some(isNaN)) return showError(0, 'Lütfen tüm alanları doldurun.');
+
+    const Cx = Ax + Bx;
+    const Cy = Ay + By;
+    const mag = Math.sqrt(Cx*Cx + Cy*Cy);
+    const theta = Math.atan2(Cy, Cx) * (180 / Math.PI);
+
+    showResult(0, [
+      { name: 'Bileşke Vektör C', value: `${fmt(Cx)} î + ${fmt(Cy)} ĵ` },
+      { name: 'Büyüklük |C|', value: fmt(mag, 'birim') },
+      { name: 'Açı (x ekseniyle)', value: fmt(theta, '°') },
+    ]);
+  }
+
+  // SORU 2: Serbest Düşüş
+  function calcFall() {
+    const ft = parseFloat(document.getElementById('f_ft').value);
+    if (isNaN(ft) || ft <= 0) return showError(1, 'Geçerli bir yükseklik girin (ft > 0).');
+    const g = 9.8;
+    const h = ft / 3.2808;
+    const v = Math.sqrt(2 * g * h);
+    const t = Math.sqrt(2 * h / g);
+
+    showResult(1, [
+      { name: 'Yükseklik h', value: fmt(h, 'm') },
+      { name: 'Çarpma Hızı v', value: fmt(v, 'm/s') },
+      { name: 'Düşme Süresi t', value: fmt(t, 's') },
+    ]);
+  }
+
+  // SORU 3: Newton
+  function calcNewton() {
+    const F1 = parseFloat(document.getElementById('n_F1').value);
+    const F2 = parseFloat(document.getElementById('n_F2').value);
+    const M  = parseFloat(document.getElementById('n_M').value);
+    if ([F1,F2,M].some(isNaN)) return showError(2, 'Lütfen tüm alanları doldurun.');
+    if (M <= 0) return showError(2, 'Kütle sıfırdan büyük olmalı.');
+
+    const Fnet = F1 + F2;
+    const a = Fnet / M;
+
+    showResult(2, [
+      { name: 'Net Kuvvet F_net', value: fmt(Fnet, 'N') },
+      { name: 'İvme a', value: fmt(a, 'm/s²') },
+    ]);
+  }
+
+  // SORU 4: Salıncak
+  function calcSwing() {
+    const M = parseFloat(document.getElementById('s_M').value);
+    const R = parseFloat(document.getElementById('s_R').value);
+    const T = parseFloat(document.getElementById('s_T').value);
+    if ([M,R,T].some(isNaN)) return showError(3, 'Lütfen tüm alanları doldurun.');
+    if (M <= 0 || R <= 0) return showError(3, 'Kütle ve uzunluk sıfırdan büyük olmalı.');
+
+    const g = 9.81;
+    const inside = R * (T - M * g) / M;
+    if (inside < 0) return showError(3, 'T < Mg olduğu için bu noktada hareket mümkün değil (gerilme yetersiz).');
+    const v = Math.sqrt(inside);
+
+    showResult(3, [
+      { name: 'Ağırlık Mg', value: fmt(M * g, 'N') },
+      { name: 'En Alt Noktadaki Hız v', value: fmt(v, 'm/s') },
+    ]);
+  }
+
+  // SORU 5: Yay
+  function calcSpring() {
+    const k     = parseFloat(document.getElementById('y_k').value);
+    const x1    = parseFloat(document.getElementById('y_x1').value);
+    const M     = parseFloat(document.getElementById('y_M').value);
+    const theta = parseFloat(document.getElementById('y_theta').value);
+    if ([k,x1,M,theta].some(isNaN)) return showError(4, 'Lütfen tüm alanları doldurun.');
+    if (M <= 0 || k <= 0) return showError(4, 'Kütle ve yay sabiti sıfırdan büyük olmalı.');
+    if (theta <= 0 || theta >= 90) return showError(4, 'Açı 0° ile 90° arasında olmalı.');
+
+    const g = 9.81;
+    const Wi = 0.5 * k * x1 * x1;
+    const sinT = Math.sin(theta * Math.PI / 180);
+    const x2 = Wi / (M * g * sinT);
+
+    showResult(4, [
+      { name: 'Yay Potansiyel Enerjisi Wi', value: fmt(Wi, 'J') },
+      { name: 'Gidilen Yol x2', value: fmt(x2, 'm') },
+    ]);
+  }
+</script>
+</body>
+</html>
